@@ -1,0 +1,494 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Tokens.
+
+   Every foreground colour here has been measured against the surface it is
+   actually used on rather than picked by eye. The severity trio in particular
+   used to fail badly in the light theme (warn 2.47:1, pass 3.34:1) because the
+   same vivid colour was used for a 5px icon and for 11px body copy. They are
+   now split: `--pass/--warn/--fail` are text-safe (>= 4.5:1 on every surface
+   they land on) and the `-edge` / `-wash` variants carry the decorative tint.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.875rem;
+
+  /* Deliberately a shade off white. Frosted panels only read as panes of
+     glass when the ground behind them is darker and more saturated than they
+     are; on a pure-white page they vanish. */
+  --background: oklch(0.94 0.012 262);
+  --foreground: oklch(0.2 0.02 262);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.02 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.02 262);
+  --primary: oklch(0.5 0.18 258);
+  --primary-foreground: oklch(0.99 0.005 250);
+  --secondary: oklch(0.955 0.006 255);
+  --secondary-foreground: oklch(0.28 0.02 260);
+  --muted: oklch(0.955 0.006 255);
+  --muted-foreground: oklch(0.5 0.018 258);
+  --accent: oklch(0.94 0.02 255);
+  --accent-foreground: oklch(0.26 0.02 260);
+  --destructive: oklch(0.51 0.2 27);
+  --destructive-foreground: oklch(0.99 0.005 250);
+
+  /* Dividers stay quiet; control boundaries have to clear 3:1 on their own
+     (WCAG 1.4.11) because on a frosted panel the fill alone does not tell you
+     where the input is. Hence two tokens rather than shadcn's one. */
+  --border: oklch(0.88 0.008 258);
+  --input: oklch(0.62 0.022 258);
+  --ring: oklch(0.5 0.18 258);
+
+  /* Compliance severity. Text-safe values: each clears 4.5:1 not just on the
+     card, but on the frosted panel composited over the most saturated point
+     of the ambient gradient behind it. */
+  --pass: oklch(0.5 0.13 152);
+  --warn: oklch(0.52 0.12 78);
+  --fail: oklch(0.51 0.2 27);
+  /* Decorative counterparts: borders and fills, never text. */
+  --pass-edge: oklch(0.5 0.13 152 / 0.45);
+  --warn-edge: oklch(0.52 0.12 78 / 0.55);
+  --fail-edge: oklch(0.51 0.2 27 / 0.5);
+  --pass-wash: oklch(0.5 0.13 152 / 0.08);
+  --warn-wash: oklch(0.72 0.15 80 / 0.16);
+  --fail-wash: oklch(0.51 0.2 27 / 0.07);
+
+  /* Canvas stage chrome. Deliberately opaque and near-neutral: the stage is a
+     colour-judgement surface, so it must not cast anything onto the photo. */
+  --stage: oklch(0.93 0.004 258);
+  --crown: oklch(0.55 0.19 300);
+  --chin: oklch(0.55 0.17 40);
+  --eyes: oklch(0.5 0.16 250);
+
+  /* ---- Glass ----
+     Alphas are high on purpose. A 20% frosted panel looks lovely in a
+     screenshot and drops body text under 4.5:1 the moment anything dark
+     drifts behind it. These sit at 0.72-0.9 so the composite never strays
+     far from the flat card colour. */
+  --glass: oklch(1 0 0 / 0.78);
+  /* Raised surfaces (popover, dialog, select menu) float over the alignment
+     stage, whose backdrop is an arbitrary photograph — black hair one moment,
+     a blown-out wall the next. At 0.86 the warn label measured 4.04:1 over
+     black. This is the one alpha that has to survive *any* backdrop, so it is
+     pushed until it does; the 28px blur still reads as glass. */
+  --glass-strong: oklch(1 0 0 / 0.93);
+  --glass-inset: oklch(1 0 0 / 0.55);
+  /* What the rails fall back to below `lg`, where they are full-bleed and
+     sticky over scrolling content: opaque, so nothing ghosts through. */
+  --panel-solid: oklch(0.985 0.004 258);
+  --glass-border: oklch(0.42 0.03 262 / 0.16);
+  --glass-highlight: oklch(1 0 0 / 0.9);
+  --glass-sheen: oklch(1 0 0 / 0.42);
+  --glass-blur: 24px;
+
+  --shadow-panel:
+    0 1px 2px oklch(0.25 0.03 262 / 0.05), 0 10px 24px -12px oklch(0.25 0.03 262 / 0.18),
+    0 32px 60px -36px oklch(0.25 0.03 262 / 0.22);
+  --shadow-raised:
+    0 2px 4px oklch(0.25 0.03 262 / 0.06), 0 16px 32px -12px oklch(0.25 0.03 262 / 0.2),
+    0 48px 80px -40px oklch(0.25 0.03 262 / 0.28);
+
+  /* Ambient backdrop the glass has something to refract. */
+  --ambient-a: oklch(0.66 0.18 264 / 0.34);
+  --ambient-b: oklch(0.73 0.14 202 / 0.3);
+  --ambient-c: oklch(0.75 0.14 332 / 0.24);
+}
+
+.dark {
+  --background: oklch(0.165 0.014 264);
+  --foreground: oklch(0.96 0.005 250);
+  --card: oklch(0.215 0.016 264);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.225 0.016 264);
+  --popover-foreground: oklch(0.96 0.005 250);
+  --primary: oklch(0.72 0.15 258);
+  --primary-foreground: oklch(0.16 0.014 264);
+  --secondary: oklch(0.28 0.018 264);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.28 0.018 264);
+  --muted-foreground: oklch(0.74 0.014 258);
+  --accent: oklch(0.32 0.022 264);
+  --accent-foreground: oklch(0.97 0.005 250);
+  --destructive: oklch(0.72 0.17 27);
+  --destructive-foreground: oklch(0.16 0.014 264);
+
+  --border: oklch(1 0 0 / 0.14);
+  --input: oklch(1 0 0 / 0.38);
+  --ring: oklch(0.76 0.14 258);
+
+  --pass: oklch(0.78 0.15 152);
+  --warn: oklch(0.84 0.14 82);
+  --fail: oklch(0.74 0.17 27);
+  --pass-edge: oklch(0.78 0.15 152 / 0.45);
+  --warn-edge: oklch(0.84 0.14 82 / 0.5);
+  --fail-edge: oklch(0.74 0.17 27 / 0.5);
+  --pass-wash: oklch(0.78 0.15 152 / 0.1);
+  --warn-wash: oklch(0.84 0.14 82 / 0.12);
+  --fail-wash: oklch(0.74 0.17 27 / 0.1);
+
+  --stage: oklch(0.115 0.01 264);
+  --crown: oklch(0.76 0.16 300);
+  --chin: oklch(0.78 0.15 45);
+  --eyes: oklch(0.74 0.14 245);
+
+  --glass: oklch(0.26 0.018 264 / 0.66);
+  --glass-strong: oklch(0.24 0.018 264 / 0.93);
+  --glass-inset: oklch(0.34 0.02 264 / 0.4);
+  --panel-solid: oklch(0.21 0.016 264);
+  --glass-border: oklch(1 0 0 / 0.12);
+  --glass-highlight: oklch(1 0 0 / 0.08);
+  --glass-sheen: oklch(1 0 0 / 0.05);
+
+  --shadow-panel:
+    0 1px 2px oklch(0 0 0 / 0.4), 0 12px 28px -12px oklch(0 0 0 / 0.6),
+    0 40px 72px -40px oklch(0 0 0 / 0.7);
+  --shadow-raised:
+    0 2px 6px oklch(0 0 0 / 0.5), 0 20px 40px -16px oklch(0 0 0 / 0.7),
+    0 60px 96px -48px oklch(0 0 0 / 0.8);
+
+  --ambient-a: oklch(0.52 0.19 264 / 0.45);
+  --ambient-b: oklch(0.48 0.15 205 / 0.34);
+  --ambient-c: oklch(0.48 0.17 322 / 0.28);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-pass: var(--pass);
+  --color-warn: var(--warn);
+  --color-fail: var(--fail);
+  --color-pass-edge: var(--pass-edge);
+  --color-warn-edge: var(--warn-edge);
+  --color-fail-edge: var(--fail-edge);
+  --color-pass-wash: var(--pass-wash);
+  --color-warn-wash: var(--warn-wash);
+  --color-fail-wash: var(--fail-wash);
+
+  --color-stage: var(--stage);
+  --color-crown: var(--crown);
+  --color-chin: var(--chin);
+  --color-eyes: var(--eyes);
+
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: calc(var(--radius) - 2px);
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+
+    /* The ambient field the frosted panels refract. Fixed and static, so a
+       backdrop-filter over it never re-rasterises while the canvas repaints. */
+    background-image:
+      radial-gradient(48rem 46rem at -6% 14%, var(--ambient-a), transparent 72%),
+      radial-gradient(46rem 44rem at 104% 8%, var(--ambient-b), transparent 70%),
+      radial-gradient(52rem 40rem at 46% 116%, var(--ambient-c), transparent 70%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  /* The alignment stage is a precision tool — never let a stray text selection
+     drag start while the user is dragging a landmark pin. */
+  canvas {
+    touch-action: none;
+    user-select: none;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 28%, transparent);
+  }
+
+  /* The rails scroll inside frosted panels; a default OS scrollbar paints an
+     opaque light track straight through the effect and, in the dark theme,
+     glares. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--foreground) 20%, transparent);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--foreground) 34%, transparent);
+  }
+}
+
+@layer components {
+  /* --- Glass surfaces -----------------------------------------------------
+
+     Three weights. `glass-panel` is structural chrome (rails, header),
+     `glass-card` is a grouping inside a panel, `glass-raised` is anything
+     floating over the page (popover, dialog).
+
+     None of these may ever be placed over the photo preview or the alignment
+     stage: both are colour-judgement surfaces and a tint would make the user
+     evaluate a colour the exported file does not have. */
+
+  /*
+    The blur is applied from `lg` up only, and not because of taste.
+    `backdrop-filter` makes an element a containing block for `position: fixed`
+    descendants, which quietly un-pins the mobile export bar from the viewport
+    and leaves it floating in the middle of the rail. Below `lg` the rails are
+    full-bleed anyway — there is no ground beside them to refract — so they use
+    a higher-alpha flat fill instead, which also spares a phone GPU a
+    full-height blurred layer while the stage repaints.
+  */
+  .glass-panel {
+    background-color: var(--panel-solid);
+    /* A faint sheen down the pane. Without it a frosted panel is just a flat
+       translucent rectangle; this is what reads as a surface catching light. */
+    background-image: linear-gradient(to bottom, var(--glass-sheen) 0, transparent 20rem);
+    border-color: var(--glass-border);
+  }
+
+  @media (min-width: 1024px) {
+    .glass-panel {
+      background-color: var(--glass);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    }
+  }
+
+  .glass-card {
+    background-color: var(--glass-inset);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      0 1px 2px oklch(0.25 0.03 262 / 0.04);
+  }
+
+  /* Below `lg` these sit on an opaque rail, so the blur has nothing to sample
+     and only costs a phone GPU a compositing layer per card. */
+  @media (min-width: 1024px) {
+    .glass-card {
+      -webkit-backdrop-filter: blur(10px) saturate(150%);
+      backdrop-filter: blur(10px) saturate(150%);
+    }
+  }
+
+  .glass-raised {
+    background-color: var(--glass-strong);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    backdrop-filter: blur(28px) saturate(190%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-raised);
+  }
+
+  /* A hairline of light along the top edge, the thing that actually sells a
+     pane of glass. */
+  .glass-edge {
+    box-shadow:
+      inset 0 1px 0 var(--glass-highlight),
+      var(--shadow-panel);
+  }
+
+  /* --- Photo surfaces -----------------------------------------------------
+     Opaque by contract. The frame may be glass; the pixels may not be. */
+
+  .photo-mat {
+    background-color: var(--card);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .stage-surface {
+    background-color: var(--stage);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    /* Own compositing layer, so pin drags repaint the canvas and nothing else. */
+    isolation: isolate;
+    contain: paint;
+  }
+
+  /* --- Action bar ---------------------------------------------------------
+
+     Fixed to the viewport on a phone so the export never scrolls out of
+     reach, and deliberately OPAQUE there: on mobile it floats over the
+     alignment stage, and a blurred surface overlapping a canvas that
+     repaints on every pointer move is exactly the frame-rate trap
+     backdrop-filter is famous for. On desktop it lives in the right rail,
+     over nothing but its own scrolling content, where glass is free. */
+
+  .action-bar {
+    background-color: var(--background);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px -12px oklch(0.2 0.03 262 / 0.25);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @media (min-width: 1024px) {
+    .action-bar {
+      background-color: var(--glass-strong);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      backdrop-filter: blur(24px) saturate(180%);
+      border-top-color: var(--glass-border);
+    }
+  }
+
+  .skip-link {
+    position: fixed;
+    top: 0.625rem;
+    left: 0.625rem;
+    z-index: 100;
+    border-radius: var(--radius-md);
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-250%);
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
+  /* --- Typography ---------------------------------------------------------- */
+
+  .eyebrow {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 650;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  kbd {
+    display: inline-block;
+    min-width: 1.25rem;
+    border: 1px solid var(--glass-border);
+    border-bottom-width: 2px;
+    border-radius: 0.3rem;
+    background-color: var(--muted);
+    padding: 0 0.25rem;
+    text-align: center;
+    font-size: 0.6875rem;
+    line-height: 1.1rem;
+    color: var(--foreground);
+  }
+
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Browsers without backdrop-filter get flat opaque panels rather than a
+   washed-out translucent mess that no longer meets contrast. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-panel,
+  .glass-raised {
+    background-color: var(--card);
+  }
+
+  .glass-card {
+    background-color: var(--muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Focus.
+
+   Written outside @layer on purpose: the shadcn primitives apply Tailwind's
+   `outline-none` from the utilities layer, which outranks anything in `base`,
+   and their 3px translucent ring is close to invisible against a frosted
+   panel. An unlayered rule is the only one that reliably wins, so every
+   control ends up with the same solid, high-contrast ring.
+   --------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+[data-slot='button']:focus-visible,
+[data-slot='input']:focus-visible,
+[data-slot='select-trigger']:focus-visible,
+[data-slot='switch']:focus-visible,
+[data-slot='slider-thumb']:focus-visible,
+[data-slot='tabs-trigger']:focus-visible,
+[data-slot='command-input']:focus-visible,
+[data-slot='dialog-close']:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* The stage is full-bleed, so its ring goes inside the frame instead of
+   underneath the neighbouring panels. */
+canvas:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: -3px;
+}

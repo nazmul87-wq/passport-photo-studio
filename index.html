@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Make a compliant passport or visa photo sheet in your browser. Nothing is uploaded — your photo never leaves your device."
+    />
+    <meta name="color-scheme" content="light dark" />
+
+    <!--
+      Content-Security-Policy — this is the app's privacy promise expressed as a
+      mechanism instead of a claim.
+
+      `connect-src 'self'` is the important one: it makes it impossible for this
+      page to send anything anywhere but its own origin, whatever the code tries.
+      That covers an accidentally-added fetch, a compromised transitive
+      dependency, and MediaPipe's built-in telemetry beacon (which is separately
+      stripped at build time — this is the belt to that braces).
+
+      GitHub Pages cannot set response headers, so this has to live in a meta tag.
+
+      Each directive is load-bearing; do not trim without testing:
+        script-src 'wasm-unsafe-eval'  the Emscripten WASM runtime needs it
+        script-src 'unsafe-inline'     the pre-paint theme script below
+        img-src / media-src blob: data:  object URLs, camera frames, canvas output
+        worker-src blob:               MediaPipe spawns workers from blobs
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               connect-src 'self';
+               script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline';
+               style-src 'self' 'unsafe-inline';
+               img-src 'self' blob: data:;
+               media-src 'self' blob:;
+               worker-src 'self' blob:;
+               font-src 'self' data:;
+               object-src 'none';
+               base-uri 'self';
+               form-action 'none';
+               frame-ancestors 'none'"
+    />
+
+    <title>Passport Photo Studio</title>
+    <script>
+      // Apply the stored theme before first paint so a dark-mode user never
+      // sees a white flash while React boots.
+      try {
+        var stored = localStorage.getItem('pps.theme')
+        var dark =
+          stored === 'dark' ||
+          (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
