@@ -1,11 +1,33 @@
 # Passport Photo Studio
 
+### ▶︎ [**Open the app → nazmul87-wq.github.io/passport-photo-studio**](https://nazmul87-wq.github.io/passport-photo-studio/)
+
+No sign-up, no install, no upload. It runs entirely in your browser tab — and works
+offline once loaded, so you can install it from your address bar and use it on a
+plane.
+
+---
+
 Make a compliant passport or visa photo sheet in your browser. Print six to eight
 regulation photos on one 4×6 print for about a dollar, instead of paying a shop.
 
-**Your photo never leaves your device.** No uploads, no analytics, no cookies, no
-network requests after the page loads. See [Verifying the privacy claim](#verifying-the-privacy-claim)
+**Your photo never leaves your device.** No uploads, no analytics, no cookies, and
+no cross-origin requests at all. See [Verifying the privacy claim](#verifying-the-privacy-claim)
 — it is checkable, not just asserted.
+
+## Using it
+
+1. **Open the app** and drop in a photo — or take one with your camera, or paste
+   from the clipboard
+2. It **finds your face automatically** and places the crown, chin and eye
+   landmarks; nudge them if they look off
+3. **Pick your country and document.** The crop updates to that authority's rules
+4. **Read the compliance panel.** It tells you what fails and why, and fixes what
+   can be fixed mechanically
+5. **Download the sheet** and print it at 100% scale
+
+Getting a clean, evenly lit photo against a plain wall matters more than anything
+the software can do afterwards — see [the note on backgrounds](#a-note-on-background-cleanup).
 
 ## What it does
 
@@ -176,9 +198,18 @@ cannot find its model — the worst possible moment to discover it.
 
 ## Deploying
 
+Live at **<https://nazmul87-wq.github.io/passport-photo-studio/>**.
+
 Pushing to `main` builds and publishes to GitHub Pages via
-`.github/workflows/deploy.yml`. The workflow sets `VITE_BASE` to the repository name
-because a project site is served from `/<repo>/`.
+`.github/workflows/deploy.yml`. The workflow runs the tests and the typecheck first,
+then greps the built output for the telemetry host and refuses to deploy if it
+appears. `VITE_BASE` is set to the repository name because a project site is served
+from `/<repo>/` — everything that loads a model resolves through Vite's `BASE_URL`
+for the same reason.
+
+If you fork this, the URL becomes `https://<you>.github.io/<your-repo>/` and the
+workflow picks the path up automatically. Enable Pages with **Settings → Pages →
+Source: GitHub Actions**.
 
 The build output is plain static files, so any static host works.
 
