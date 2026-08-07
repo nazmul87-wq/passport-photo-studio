@@ -30,6 +30,7 @@
  *   node scripts/vendor-models.mjs --check    # verify only, exit 1 if incomplete
  */
 
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs/promises'
