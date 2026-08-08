@@ -45,17 +45,32 @@ jobs:
       - run: npm test
       - run: npm run typecheck
 
+      # Must precede the build, because it supplies the base path the build
+      # needs. Deriving that by hand as /<repo>/ is correct only while the site
+      # has no custom domain: add one and Pages serves from the root, so every
+      # hand-derived asset URL 404s while the build still reports success.
+      - id: pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
       - name: Build
-        # A GitHub Pages project site is served from /<repo>/, so asset URLs
-        # have to be built against that prefix.
+        # base_path arrives without a trailing slash — "/my-repo", or "" for a
+        # custom domain — and Vite's base wants one, so it is appended here.
+        # That also maps the custom-domain case to "/" rather than "", which
+        # Vite would otherwise interpret as a relative base.
         env:
-          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_BASE: ${{ steps.pages.outputs.base_path }}/
         run: npm run build
 
       # A code review of src/ cannot see a beacon that lives inside a
       # dependency, so the shipped bytes are checked directly.
       - name: Assert no telemetry host in the build
         run: |
+          # Without this, a missing dist/ makes grep exit 2, the `if` not fire,
+          # and the gate report success having inspected nothing.
+          if [ ! -d dist ]; then
+            echo "::error::dist/ does not exist, so nothing was checked. Refusing to deploy."
+            exit 1
+          fi
           if grep -rl "odml.pa.googleapis.com" dist/; then
             echo "::error::Telemetry host found in dist/. Refusing to deploy."
             exit 1
@@ -65,7 +80,6 @@ jobs:
       # upload-pages-artifact v4 stopped including dotfiles in the artifact.
       # Safe here: the Vite build emits none, and this site needs no .nojekyll
       # because the Pages Actions flow never runs Jekyll.
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist
