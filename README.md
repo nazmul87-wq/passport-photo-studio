@@ -35,15 +35,24 @@ the software can do afterwards — see [the note on backgrounds](#a-note-on-back
 - Derives the crop from official head-height and eye-height rules for ~30 countries
 - Tells you *why* a photo fails, and fixes what can be fixed mechanically
 - Corrects a colour-cast background, the most common avoidable failure
-- Exports a print-ready sheet **stamped with its real physical resolution**
+- Exports a print-ready sheet as a **PDF whose page is the paper's true physical size**,
+  or as a PNG stamped with its real physical resolution
 
-### Why the DPI stamp matters
+### Why the page size matters
 
 A canvas exports pixel dimensions but says nothing about how large those pixels are
 meant to be. Print dialogs then fall back to "fit to paper" and silently rescale the
 sheet — and a 2×2 in photo printed at 1.9 in fails every check at the passport office.
-Exports here carry a PNG `pHYs` chunk / JPEG JFIF density declaring 300 DPI, so the
-print lands at true size.
+
+Sheets export as **PDF by default**, and that is the fix. A PDF declares its page size
+in `/MediaBox`, in PostScript points, and that is not a hint — a 4×6 in sheet is a
+288×432 pt page in every viewer that opens it. "Actual size" then means the right thing
+without the print path having to infer anything.
+
+PNG remains available for the sheet, and single photos still export as PNG, since that
+is what upload forms want. Those carry a `pHYs` chunk / JFIF density declaring 300 DPI —
+which helps, but only where the consumer chooses to honour it. Chrome's print preview
+and most photo-lab kiosks do not. That gap is the whole reason the PDF path exists.
 
 **Print at 100% scale.** If your print dialog offers "fit to page", turn it off.
 
@@ -91,6 +100,7 @@ src/core/      pure TypeScript, no React, no DOM — unit tested as arithmetic
   render.ts      photo rasterisation and sheet packing
   enhance.ts     tone curve, saturation, auto white balance
   encode.ts      PNG pHYs / JPEG JFIF density stamping
+  pdf.ts         one-page PDF whose MediaBox is the sheet's physical size
   pipeline.ts    the single definition of "the finished photo"
 src/components/  UI
 src/state/       editor reducer with gesture-aware undo/redo

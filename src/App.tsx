@@ -43,8 +43,9 @@ import {
   type Adjustments,
 } from '@/core/enhance'
 import { computeTransform } from '@/core/geometry'
+import { buildPdf } from '@/core/pdf'
 import { renderFinalPhoto, type PhotoPipeline } from '@/core/pipeline'
-import { PAPER_SIZES, planSheet, renderSheet } from '@/core/render'
+import { PAPER_SIZES, planSheet, renderSheet, sheetPhysicalSize } from '@/core/render'
 import {
   compositeOnBackground,
   defaultFeatherPx,
@@ -59,6 +60,8 @@ import { canvasToBlob, downloadBlob, type LoadedImage } from '@/lib/loadImage'
 import { useTheme } from '@/lib/useTheme'
 import { cn } from '@/lib/utils'
 import { useEditor, type LandmarkKey } from '@/state/useEditor'
+
+type SheetFormat = 'pdf' | 'png'
 
 interface DetectionState {
   status: 'idle' | 'running' | 'done' | 'partial' | 'failed'
@@ -82,6 +85,10 @@ export default function App() {
   const [feather, setFeather] = useState(0.5)
   const [personMask, setPersonMask] = useState<PersonMask | null>(null)
   const [composited, setComposited] = useState<HTMLCanvasElement | null>(null)
+  // PDF by default. A sheet exists to be printed at true size, and that is the
+  // one thing a bitmap cannot guarantee: its DPI stamp is advisory and print
+  // paths routinely ignore it, whereas a PDF page size is not negotiable.
+  const [sheetFormat, setSheetFormat] = useState<SheetFormat>('pdf')
 
   const { spec, paper, sheet, image, placement } = editor
 
@@ -106,6 +113,7 @@ export default function App() {
   )
 
   const layout = useMemo(() => planSheet(spec, paper, sheet), [spec, paper, sheet])
+  const sheetSize = useMemo(() => sheetPhysicalSize(layout, spec.dpi), [layout, spec.dpi])
 
   const findings = useMemo<Finding[]>(() => {
     if (!image || !placement || !transform) return []
@@ -303,6 +311,26 @@ export default function App() {
       setBusy(true)
       try {
         const photo = renderFinalPhoto(spec, image.bitmap, placement, pipeline)
+
+        if (kind === 'sheet' && sheetFormat === 'pdf') {
+          const { canvas } = renderSheet(spec, photo, paper, sheet)
+          // The only place the sheet's fidelity is decided: buildPdf stores
+          // these bytes verbatim, so whatever quality is chosen here is what
+          // prints. 0.95 is indistinguishable at 300 DPI on paper.
+          const blob = await canvasToBlob(canvas, 'image/jpeg', 0.95)
+          const pdf = buildPdf({
+            jpeg: new Uint8Array(await blob.arrayBuffer()),
+            widthPx: canvas.width,
+            heightPx: canvas.height,
+            dpi: spec.dpi,
+          })
+          downloadBlob(
+            new Blob([pdf], { type: 'application/pdf' }),
+            `passport-${spec.id}-sheet-${paper.id}.pdf`,
+          )
+          return
+        }
+
         const canvas = kind === 'single' ? photo : renderSheet(spec, photo, paper, sheet).canvas
         const blob = await canvasToBlob(canvas, 'image/png')
         // Stamp the physical resolution so the print lands at true size rather
@@ -316,7 +344,7 @@ export default function App() {
         setBusy(false)
       }
     },
-    [image, placement, spec, paper, sheet, pipeline],
+    [image, placement, spec, paper, sheet, pipeline, sheetFormat],
   )
 
   const ready = Boolean(image && placement && transform)
@@ -666,8 +694,19 @@ export default function App() {
               </Tabs>
 
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Stamped at {spec.dpi} DPI. Print at 100% scale — if the print dialog offers
-                “fit to page”, turn it off, or every photo comes out the wrong size.
+                {sheetFormat === 'pdf' ? (
+                  <>
+                    The PDF page is {sheetSize.widthIn.toFixed(0)}×{sheetSize.heightIn.toFixed(0)}
+                    {' in'}, so print it at “Actual size” — never “Fit to page”. A PDF states its
+                    page size outright, which is why it survives print paths that quietly rescale
+                    an image.
+                  </>
+                ) : (
+                  <>
+                    Stamped at {spec.dpi} DPI. Print at 100% scale — if the print dialog offers
+                    “fit to page”, turn it off, or every photo comes out the wrong size.
+                  </>
+                )}
               </p>
             </div>
           ) : (
@@ -685,6 +724,7 @@ export default function App() {
           {ready && (
             <div className="action-bar fixed inset-x-0 bottom-0 z-40 mt-auto lg:sticky lg:inset-x-auto lg:z-10">
               <div className="mx-auto max-w-md space-y-2 p-3 sm:max-w-lg lg:max-w-none lg:p-4">
+                <SheetFormatToggle value={sheetFormat} onChange={setSheetFormat} />
                 <Button
                   className="h-11 w-full text-[13px] lg:h-10"
                   disabled={busy}
@@ -880,6 +920,58 @@ function DetectionStatus({ state }: { state: DetectionState }) {
           <span>{label}</span>
         </p>
       )}
+    </div>
+  )
+}
+
+/**
+ * Which file the sheet comes out as.
+ *
+ * Deliberately a visible control rather than a preference buried in a menu:
+ * the two options fail differently, and which one a user wants depends on where
+ * they are taking the file. PDF for anything that will be printed; PNG when a
+ * lab's upload form insists on an image, or when the lossless file is wanted.
+ */
+function SheetFormatToggle({
+  value,
+  onChange,
+}: {
+  value: SheetFormat
+  onChange: (next: SheetFormat) => void
+}) {
+  const options: Array<{ id: SheetFormat; label: string; hint: string }> = [
+    { id: 'pdf', label: 'PDF', hint: 'Fixed page size — prints at true size' },
+    { id: 'png', label: 'PNG', hint: 'Lossless image, 300 DPI stamp only' },
+  ]
+
+  return (
+    <div className="flex items-center gap-2">
+      <span id="sheet-format-label" className="text-[11px] font-medium text-muted-foreground">
+        Sheet format
+      </span>
+      <div
+        role="group"
+        aria-labelledby="sheet-format-label"
+        className="ml-auto flex gap-0.5 rounded-lg border border-glass-border p-0.5"
+      >
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            aria-pressed={value === option.id}
+            title={option.hint}
+            className={cn(
+              'rounded-[0.4rem] px-2.5 py-1 text-[11px] font-semibold tracking-wide transition-colors',
+              value === option.id
+                ? 'bg-primary/12 text-foreground shadow-[inset_0_1px_0_var(--glass-highlight)]'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
