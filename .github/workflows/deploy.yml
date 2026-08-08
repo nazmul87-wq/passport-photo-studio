@@ -14,6 +14,11 @@ concurrency:
 # particular must NOT hold pages:write — it runs `npm ci` and a network-fetching
 # prebuild script, so a malicious lifecycle script in any of ~230 dependencies
 # would otherwise be able to publish to the site or mint an OIDC token.
+#
+# Actions are pinned by commit SHA for the same reason a lockfile pins packages
+# by hash: a tag is mutable, and the deploy job is the one place in this repo
+# holding rights to publish. Dependabot keeps the pins current
+# (.github/dependabot.yml), so pinning does not decay into running stale code.
 permissions: {}
 
 jobs:
@@ -22,9 +27,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      # Nothing in this job pushes, so the token has no reason to sit in
+      # .git/config while `npm ci` runs dependency lifecycle scripts.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -56,8 +65,8 @@ jobs:
       # upload-pages-artifact v4 stopped including dotfiles in the artifact.
       # Safe here: the Vite build emits none, and this site needs no .nojekyll
       # because the Pages Actions flow never runs Jekyll.
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: dist
 
@@ -72,4 +81,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
