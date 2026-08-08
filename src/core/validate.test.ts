@@ -218,6 +218,55 @@ describe('checkBackground', () => {
     expect(checkBackground(US.background, greyish).severity).toBe('warn')
     expect(checkBackground(INTL.background, greyish).severity).toBe('pass')
   })
+
+  it('does not claim a replaced background when nothing was replaced', () => {
+    const finding = checkBackground(US.background, clean)
+    expect(finding.title).toBe('Background')
+    expect(finding.detail).not.toMatch(/replace|altered/i)
+  })
+
+  it('discloses that a passing background is a digital replacement', () => {
+    const finding = checkBackground(US.background, clean, true)
+    // Still a pass — the measurement is the measurement — but the user is told
+    // which background passed, because several authorities reject altered
+    // photographs whatever they measure.
+    expect(finding.severity).toBe('pass')
+    expect(finding.title).toMatch(/digitally replaced/i)
+    expect(finding.detail).toMatch(/altered/i)
+  })
+
+  it('does not soften a failing verdict just because the background was replaced', () => {
+    // A composite over a spec whose fill the sample does not match must still
+    // fail. Disclosure is not an excuse to stop measuring.
+    const blue: BackgroundSample = { mean: [235, 240, 255], minChannel: 235, spread: 20, unevenness: 3 }
+    expect(checkBackground(US.background, blue, true).severity).toBe('fail')
+  })
+})
+
+describe('validate: backgroundReplaced', () => {
+  const clean: BackgroundSample = { mean: [248, 248, 247], minChannel: 247, spread: 1, unevenness: 2 }
+
+  const withBackground = (replaced?: boolean): Finding => {
+    const placement = place(head())
+    const findings = validate({
+      spec: US,
+      placement,
+      transform: computeTransform(US, placement),
+      imageWidth: 1400,
+      imageHeight: 1900,
+      background: clean,
+      backgroundReplaced: replaced,
+    })
+    return find(findings, 'background')!
+  }
+
+  it('threads the flag through to the background finding', () => {
+    expect(withBackground(true).title).toMatch(/digitally replaced/i)
+  })
+
+  it('defaults to treating the background as photographed', () => {
+    expect(withBackground().title).toBe('Background')
+  })
 })
 
 describe('tilt', () => {

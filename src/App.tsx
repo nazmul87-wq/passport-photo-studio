@@ -90,9 +90,14 @@ export default function App() {
     [awbEnabled, background],
   )
 
+  // The composite only counts when the toggle is on. Hoisted out of the
+  // pipeline memo because the background sampler needs the same gated value and
+  // must not reach into `pipeline` for it — see that effect for why.
+  const activeComposite = cleanupEnabled ? composited : null
+
   const pipeline = useMemo<PhotoPipeline>(
-    () => ({ adjustments, gains, composited: cleanupEnabled ? composited : null }),
-    [adjustments, gains, cleanupEnabled, composited],
+    () => ({ adjustments, gains, composited: activeComposite }),
+    [adjustments, gains, activeComposite],
   )
 
   const transform = useMemo(
@@ -111,14 +116,31 @@ export default function App() {
       imageWidth: image.width,
       imageHeight: image.height,
       background: background ?? undefined,
+      backgroundReplaced: Boolean(activeComposite),
     })
-  }, [spec, placement, transform, image, background])
+  }, [spec, placement, transform, image, background, activeComposite])
 
   /**
    * Background sampling is debounced and runs on its own offscreen canvas.
    * Reading pixels back out of the live preview would mean the preview's render
    * effect feeds state that re-renders the preview — cheap to write, and a
    * reliable way to lock the tab up.
+   *
+   * The composite is included, so the panel judges the pixels that will
+   * actually be exported. Leaving it out had the panel reporting the original
+   * wall while the export carried a clean one — precisely the preview/export
+   * disagreement `renderFinalPhoto` exists to prevent.
+   *
+   * White balance is the deliberate exception, forced back to unit gains. Those
+   * gains are *derived from this measurement*, so feeding a corrected
+   * background back in would report success unconditionally and the check would
+   * be worthless. The composite is not like that: it is an edit the user made,
+   * and an examiner sees its result.
+   *
+   * That asymmetry is also why this builds its own pipeline rather than
+   * spreading `pipeline` and overriding `gains`. `pipeline` carries the AWB
+   * gains, which depend on `background`, which this effect sets — depending on
+   * it here closes a render loop that re-samples forever.
    */
   const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null)
   useEffect(() => {
@@ -129,9 +151,13 @@ export default function App() {
     setSampling(true)
     const timer = window.setTimeout(() => {
       const canvas = (sampleCanvasRef.current ??= document.createElement('canvas'))
-      // Sample before white balance: measuring a background we have already
-      // corrected would always report success and the check would be worthless.
-      renderFinalPhoto(spec, image.bitmap, placement, { adjustments, gains: UNIT_GAINS }, canvas)
+      renderFinalPhoto(
+        spec,
+        image.bitmap,
+        placement,
+        { adjustments, gains: UNIT_GAINS, composited: activeComposite },
+        canvas,
+      )
       setBackground(sampleBackground(canvas, spec))
       setSampling(false)
     }, 140)
@@ -139,7 +165,7 @@ export default function App() {
       window.clearTimeout(timer)
       setSampling(false)
     }
-  }, [spec, image, placement, adjustments])
+  }, [spec, image, placement, adjustments, activeComposite])
 
   /**
    * Segment the subject once per image, the first time cleanup is switched on.

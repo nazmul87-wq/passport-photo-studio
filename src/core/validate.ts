@@ -58,13 +58,20 @@ export interface ValidationInput {
   imageWidth: number
   imageHeight: number
   background?: BackgroundSample
+  /**
+   * The sampled background is a digitally composited one rather than the wall
+   * the photo was taken against. Changes what a passing result *means*, so the
+   * finding says so — see `checkBackground`.
+   */
+  backgroundReplaced?: boolean
 }
 
 /** Below this the print is visibly soft; above spec DPI it is pixel-perfect. */
 const DPI_WARN_FLOOR = 210
 
 export function validate(input: ValidationInput): Finding[] {
-  const { spec, placement, transform, imageWidth, imageHeight, background } = input
+  const { spec, placement, transform, imageWidth, imageHeight, background, backgroundReplaced } =
+    input
   const extent: ImageExtent = { imageWidth, imageHeight }
   const findings: Finding[] = []
 
@@ -85,7 +92,7 @@ export function validate(input: ValidationInput): Finding[] {
 
   findings.push(checkChinInFrame(spec, placement, transform, extent))
 
-  if (background) findings.push(checkBackground(spec.background, background))
+  if (background) findings.push(checkBackground(spec.background, background, backgroundReplaced))
 
   const tilt = checkTilt(transform)
   if (tilt) findings.push(tilt)
@@ -286,8 +293,21 @@ function checkChinInFrame(
   }
 }
 
-/** Pure evaluation of a background sample against a spec rule. */
-export function checkBackground(rule: BackgroundRule, sample: BackgroundSample): Finding {
+/**
+ * Pure evaluation of a background sample against a spec rule.
+ *
+ * `replaced` says the sample came from a composited background rather than the
+ * wall. It cannot change the verdict — the measurement is the measurement — but
+ * it changes what passing *means*, and the user has to be told which one they
+ * got. Several authorities prohibit digitally altered photographs outright, so
+ * a green tick that quietly attributes the fill colour to the room is the app
+ * concealing the most likely reason the photo gets rejected at the counter.
+ */
+export function checkBackground(
+  rule: BackgroundRule,
+  sample: BackgroundSample,
+  replaced = false,
+): Finding {
   const tooDark = sample.minChannel < rule.minChannel
   const tooColoured = sample.spread > rule.maxSpread
   const uneven = sample.unevenness > 18
@@ -296,8 +316,10 @@ export function checkBackground(rule: BackgroundRule, sample: BackgroundSample):
     return {
       id: 'background',
       severity: 'pass',
-      title: 'Background',
-      detail: `Even and neutral, matching “${rule.label.toLowerCase()}”.`,
+      title: replaced ? 'Background (digitally replaced)' : 'Background',
+      detail: replaced
+        ? `Even and neutral, matching “${rule.label.toLowerCase()}” — but this is the replacement background, not the one you photographed. Some authorities, the US State Department among them, reject digitally altered photographs whatever they measure.`
+        : `Even and neutral, matching “${rule.label.toLowerCase()}”.`,
     }
   }
 
