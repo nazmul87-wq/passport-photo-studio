@@ -54,6 +54,8 @@ Each of these was a real defect found in review. Re-introducing them is a regres
 
 **Exports must carry DPI metadata.** `encode.ts` patches the PNG `pHYs` chunk / JPEG JFIF density. Canvas `toBlob` declares nothing, so print dialogs "fit to page" and silently rescale the sheet. This is the single most common real-world rejection cause.
 
+**A bitmap's DPI stamp is advisory; a PDF page size is not.** `pdf.ts` wraps the sheet in a one-page PDF whose `/MediaBox` is its true physical size in points, which is why PDF is the default sheet format — Chrome's print preview and most lab kiosks ignore `pHYs` and scale to the paper anyway. The JPEG is embedded as a `/DCTDecode` XObject, meaning the bytes are stored **verbatim**: that module compresses and decodes nothing, so export quality is decided solely by the `canvasToBlob` quality argument in `App.tsx`. It writes no Info dictionary — a creation date in a file headed for a print shop is metadata this app has no reason to author. The payload has to be JPEG because PDF cannot carry PNG bytes directly (`FlateDecode` wants raw zlib over unfiltered samples; canvas emits colour-type-6 RGBA), so the PNG export stays for anyone wanting lossless.
+
 ## The privacy promise is enforced, not asserted
 
 The UI tells users "nothing leaves your device". Two mechanisms back that up, and both must keep working:
